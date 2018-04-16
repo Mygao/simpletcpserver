@@ -28,6 +28,7 @@ func TestNew(t *testing.T) {
 	if _, err = net.Dial("tcp", addr); err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(time.Second)
 	s.Stop()
 }
 
