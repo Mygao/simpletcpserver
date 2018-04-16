@@ -9,7 +9,7 @@ import (
 type TCPServer struct {
 	Addr  string
 	ln    net.Listener
-	conns []net.Conn
+	conns map[string]net.Conn
 	mtx   sync.Mutex // Connection pool locker
 	done  chan bool
 }
@@ -21,7 +21,7 @@ func New(addr string) (*TCPServer, error) {
 		return nil, err
 	}
 	log.Printf("Started TCP server (%v)", s.Addr)
-	s.conns = make([]net.Conn, 0, 10)
+	s.conns = make(map[string]net.Conn)
 	go s.listen()
 	return s, err
 }
@@ -48,21 +48,41 @@ func (s *TCPServer) listen() {
 	}
 }
 
+// Add new connection to its connection pool
 func (s *TCPServer) newConnection(conn net.Conn) {
-	log.Printf("New connection! local: %v, remote: %v", conn.LocalAddr(), conn.RemoteAddr())
+	remoteAddr := conn.RemoteAddr().String()
+	log.Printf("New connection! %v", remoteAddr)
 	s.mtx.Lock()
-	s.conns = append(s.conns, conn)
+	if _, ok := s.conns[remoteAddr]; ok {
+		log.Fatalf("%v already exists in connection pool!\n", remoteAddr)
+	}
+	s.conns[remoteAddr] = conn
 	s.mtx.Unlock()
 }
 
+// Send "ping" string to all connections, and remove dead connections
 func (s *TCPServer) PingAll() {
+	ch := make(chan string, 10)
 	s.mtx.Lock()
-	for _, c := range s.conns {
-		go s.Ping(c)
+	connNum := len(s.conns)
+	for addr, c := range s.conns {
+		go s.Ping(addr, c, ch)
+	}
+	for i := 0; i < connNum; i++ {
+		addrToRemove := <-ch
+		if addrToRemove != "" {
+			delete(s.conns, addrToRemove)
+		}
 	}
 	s.mtx.Unlock()
 }
 
-func (s *TCPServer) Ping(c net.Conn) {
-	c.Write([]byte("ping\n"))
+// Send "ping" to given connection, send addr if fail
+func (s *TCPServer) Ping(addr string, c net.Conn, ch chan string) {
+	_, err := c.Write([]byte("ping\n"))
+	if err != nil {
+		log.Printf("%v disconnected, %v", addr, err)
+		ch <- addr
+	}
+	ch <- ""
 }
