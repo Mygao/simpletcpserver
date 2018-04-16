@@ -10,6 +10,7 @@ import (
 var Addr = flag.String("addr", ":8080", "Server listening address")
 
 func main() {
+  flag.Parse()
 	s, err := server.New(*Addr)
 	if err != nil {
 		log.Fatal(err)
