@@ -61,12 +61,12 @@ func (s *TCPServer) newConnection(conn net.Conn) {
 }
 
 // Send "ping" string to all connections, and remove dead connections
-func (s *TCPServer) PingAll() {
+func (s *TCPServer) SendAll(msg string) {
 	ch := make(chan string, 10)
 	s.mtx.Lock()
 	connNum := len(s.conns)
 	for addr, c := range s.conns {
-		go s.Ping(addr, c, ch)
+		go s.Send(addr, c, ch, msg)
 	}
 	for i := 0; i < connNum; i++ {
 		addrToRemove := <-ch
@@ -78,8 +78,8 @@ func (s *TCPServer) PingAll() {
 }
 
 // Send "ping" to given connection, send addr if fail
-func (s *TCPServer) Ping(addr string, c net.Conn, ch chan string) {
-	_, err := c.Write([]byte("ping\n"))
+func (s *TCPServer) Send(addr string, c net.Conn, ch chan string, msg string) {
+	_, err := c.Write([]byte(msg))
 	if err != nil {
 		log.Printf("%v disconnected, %v", addr, err)
 		ch <- addr
