@@ -31,11 +31,11 @@ func main() {
 		text, _ := reader.ReadString('\n')
 		switch {
 		case strings.Compare(text, "p\n") == 0:
-			s.SendAll("ping")
+			s.SendAll("ping\n")
 		case strings.Compare(text, "r\n") == 0:
-			s.SendAll("start")
+			s.SendAll("start\n")
 		case strings.Compare(text, "s\n") == 0:
-			s.SendAll("stop")
+			s.SendAll("stop\n")
 		}
 	}
 }
